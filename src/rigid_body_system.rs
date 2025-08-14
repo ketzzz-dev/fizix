@@ -1,4 +1,4 @@
-use nalgebra::{Isometry3, Matrix3, Point3, Quaternion, UnitQuaternion, Vector3};
+use nalgebra::{Isometry3, Matrix3, Point3, UnitQuaternion, Vector3};
 use crate::constraints::Constraint;
 use crate::Precision;
 
@@ -6,10 +6,10 @@ use crate::Precision;
 #[derive(Clone)]
 pub struct State {
     pub position: Vec<Point3<Precision>>,
-    pub orientation: Vec<Quaternion<Precision>>,
+    pub orientation: Vec<UnitQuaternion<Precision>>,
 
     pub last_position: Vec<Point3<Precision>>,
-    pub last_orientation: Vec<Quaternion<Precision>>,
+    pub last_orientation: Vec<UnitQuaternion<Precision>>,
 
     pub linear_velocity: Vec<Vector3<Precision>>,
     pub angular_velocity: Vec<Vector3<Precision>>,
@@ -53,18 +53,17 @@ impl State {
     }
 
     /// Rotates the orientation of the Rigid Body at index `i`.
-    pub fn rotate_orientation(&mut self, i: usize, rotation: Vector3<Precision>) {
-        let orientation = self.orientation[i];
+    pub fn apply_rotation_vector(&mut self, i: usize, rotation: Vector3<Precision>) {
+        let current_orientation = self.orientation[i];
 
-        self.orientation[i] += 0.5 * Quaternion::from_imag(rotation) * orientation;
-        self.orientation[i].normalize_mut();
+        self.orientation[i] = UnitQuaternion::from_scaled_axis(rotation) * current_orientation;
     }
 
     /// Calculates the derived data (Transform Matrix and Inverse Inertia Tensor) for the Rigid Body at index `i`.
     ///
     /// This function must be called whenever `position` or `orientation` has been manipulated.
     pub fn calculate_derived_data(&mut self, i: usize) {
-        self.transform[i] = Isometry3::from_parts(self.position[i].into(), UnitQuaternion::from_quaternion(self.orientation[i]));
+        self.transform[i] = Isometry3::from_parts(self.position[i].into(), self.orientation[i]);
 
         let rotation = self.transform[i].rotation.to_rotation_matrix();
 
@@ -120,13 +119,16 @@ impl RigidBodySystem {
     /// If the `mass` supplied is infinite, the Rigid Body becomes static (immovable).
     ///
     /// Returns the index of the Rigid Body for direct access from the system.
-    pub fn add_rigid_body(&mut self, position: Point3<Precision>, orientation: Quaternion<Precision>, mass: Precision, inertia_tensor: Matrix3<Precision>) -> usize {
-        let transform = Isometry3::from_parts(position.into(), UnitQuaternion::from_quaternion(orientation));
+    pub fn add_rigid_body(&mut self, position: Point3<Precision>, orientation: UnitQuaternion<Precision>, mass: Precision, inertia_tensor: Matrix3<Precision>) -> usize {
+        let transform = Isometry3::from_parts(position.into(), orientation);
         let rotation = transform.rotation.to_rotation_matrix();
-        let inverse_inertia_tensor = if mass.is_infinite() {
-            Matrix3::zeros()
+
+        let is_mass_valid = mass.is_finite() && mass > 0.0;
+        let inverse_mass = if is_mass_valid { 1.0 / mass } else { 0.0 };
+        let inverse_inertia_tensor = if is_mass_valid {
+            inertia_tensor.try_inverse().unwrap_or(Matrix3::zeros())
         } else {
-            inertia_tensor.try_inverse().unwrap_or(Matrix3::identity())
+            Matrix3::zeros()
         };
         let inverse_inertia_tensor_world = rotation * inverse_inertia_tensor * rotation.transpose();
 
@@ -142,7 +144,7 @@ impl RigidBodySystem {
         self.state.force.push(Vector3::zeros());
         self.state.torque.push(Vector3::zeros());
 
-        self.state.inverse_mass.push(1.0 / mass);
+        self.state.inverse_mass.push(inverse_mass);
         self.state.inverse_inertia_tensor.push(inverse_inertia_tensor);
 
         self.state.inverse_inertia_tensor_world.push(inverse_inertia_tensor_world);
@@ -183,18 +185,16 @@ impl RigidBodySystem {
 
                 let linear_acceleration = self.gravity + self.state.inverse_mass[i] * self.state.force[i];
                 let angular_acceleration = self.state.inverse_inertia_tensor_world[i] * self.state.torque[i];
-                let orientation = self.state.orientation[i];
 
                 self.state.force[i] = Vector3::zeros();
-                self.state.linear_velocity[i] += linear_acceleration * delta_time;
-                self.state.position[i] += self.state.linear_velocity[i] * delta_time;
-
                 self.state.torque[i] = Vector3::zeros();
+                
+                self.state.linear_velocity[i] += linear_acceleration * delta_time;
                 self.state.angular_velocity[i] += angular_acceleration * delta_time;
-                self.state.orientation[i] += 0.5 * Quaternion::from_imag(self.state.angular_velocity[i])
-                    * orientation * delta_time;
 
-                self.state.orientation[i].normalize_mut();
+                self.state.position[i] += self.state.linear_velocity[i] * delta_time;
+                
+                self.state.apply_rotation_vector(i, self.state.angular_velocity[i] * delta_time);
                 self.state.calculate_derived_data(i);
             }
 

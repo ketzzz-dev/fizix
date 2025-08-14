@@ -1,5 +1,5 @@
 use nalgebra::{Point3, Vector3};
-use crate::Precision;
+use crate::{Precision, EPSILON};
 use crate::rigid_body_system::State;
 
 /// The trait that defines a Constraint.
@@ -12,8 +12,8 @@ pub trait Constraint {
 pub struct PointConstraint {
     body_a: usize, body_b: usize,
 
-    point_a: Point3<Precision>,
-    point_b: Point3<Precision>
+    local_point_a: Point3<Precision>,
+    local_point_b: Point3<Precision>
 }
 impl PointConstraint {
     pub fn new(
@@ -25,21 +25,23 @@ impl PointConstraint {
         Self {
             body_a, body_b,
 
-            point_a: local_point_a,
-            point_b: local_point_b
+            local_point_a,
+            local_point_b
         }
     }
 }
 
 impl Constraint for PointConstraint {
     fn project_bodies(&self, state: &mut State) {
-        let world_point_a = state.transform[self.body_a] * self.point_a;
-        let world_point_b = state.transform[self.body_b] * self.point_b;
+        if !state.has_finite_mass(self.body_a) && !state.has_finite_mass(self.body_b) { return };
+
+        let world_point_a = state.transform[self.body_a].transform_point(&self.local_point_a);
+        let world_point_b = state.transform[self.body_b].transform_point(&self.local_point_b);
 
         let difference = world_point_a - world_point_b;
         let distance = difference.norm();
 
-        if distance == 0.0 { return; }
+        if distance < EPSILON { return; }
 
         let normal = difference / distance;
 
@@ -62,7 +64,7 @@ impl Constraint for PointConstraint {
 
             state.position[self.body_a] += state.inverse_mass[self.body_a] * translational_correction;
 
-            state.rotate_orientation(self.body_a, state.inverse_inertia_tensor_world[self.body_a] * rotational_correction);
+            state.apply_rotation_vector(self.body_a, state.inverse_inertia_tensor_world[self.body_a] * rotational_correction);
             state.calculate_derived_data(self.body_a);
         }
         if state.has_finite_mass(self.body_b) {
@@ -70,7 +72,7 @@ impl Constraint for PointConstraint {
 
             state.position[self.body_b] -= state.inverse_mass[self.body_b] * translational_correction;
 
-            state.rotate_orientation(self.body_b, state.inverse_inertia_tensor_world[self.body_b] * -rotational_correction);
+            state.apply_rotation_vector(self.body_b, state.inverse_inertia_tensor_world[self.body_b] * -rotational_correction);
             state.calculate_derived_data(self.body_b);
         }
     }
@@ -107,9 +109,11 @@ impl LineConstraint {
 
 impl Constraint for LineConstraint {
     fn project_bodies(&self, state: &mut State) {
-        let world_point_a = state.transform[self.body_a] * self.local_point_a;
-        let world_point_b = state.transform[self.body_b] * self.local_point_b;
-        let world_direction = state.transform[self.body_b] * self.local_axis;
+        if !state.has_finite_mass(self.body_a) && !state.has_finite_mass(self.body_b) { return };
+
+        let world_point_a = state.transform[self.body_a].transform_point(&self.local_point_a);
+        let world_point_b = state.transform[self.body_b].transform_point(&self.local_point_b);
+        let world_direction = state.transform[self.body_b].transform_vector(&self.local_axis);
 
         let projected_point = world_point_b + world_direction
             * world_direction.dot(&(world_point_a - world_point_b));
@@ -117,7 +121,7 @@ impl Constraint for LineConstraint {
         let difference = world_point_a - projected_point;
         let distance = difference.norm();
         
-        if distance == 0.0 { return; }
+        if distance < EPSILON { return; }
 
         let normal = difference / distance;
 
@@ -140,7 +144,7 @@ impl Constraint for LineConstraint {
 
             state.position[self.body_a] += state.inverse_mass[self.body_a] * translational_correction;
 
-            state.rotate_orientation(self.body_a, state.inverse_inertia_tensor_world[self.body_a] * rotational_correction);
+            state.apply_rotation_vector(self.body_a, state.inverse_inertia_tensor_world[self.body_a] * rotational_correction);
             state.calculate_derived_data(self.body_a);
         }
         if state.has_finite_mass(self.body_b) {
@@ -148,7 +152,7 @@ impl Constraint for LineConstraint {
 
             state.position[self.body_b] -= state.inverse_mass[self.body_b] * translational_correction;
 
-            state.rotate_orientation(self.body_b, state.inverse_inertia_tensor_world[self.body_b] * -rotational_correction);
+            state.apply_rotation_vector(self.body_b, state.inverse_inertia_tensor_world[self.body_b] * -rotational_correction);
             state.calculate_derived_data(self.body_b);
         }
     }
@@ -179,13 +183,15 @@ impl AxisConstraint {
 
 impl Constraint for AxisConstraint {
     fn project_bodies(&self, state: &mut State) {
-        let world_axis_a = state.transform[self.body_a] * self.local_axis_a;
-        let world_axis_b = state.transform[self.body_b] * self.local_axis_b;
+        if !state.has_finite_mass(self.body_a) && !state.has_finite_mass(self.body_b) { return };
+
+        let world_axis_a = state.transform[self.body_a].transform_vector(&self.local_axis_a);
+        let world_axis_b = state.transform[self.body_b].transform_vector(&self.local_axis_b);
 
         let orthogonal = world_axis_a.cross(&world_axis_b);
         let magnitude = orthogonal.norm();
 
-        if magnitude == 0.0 { return; }
+        if magnitude < EPSILON { return; }
 
         let normal = orthogonal / magnitude;
         let normal_transpose = normal.transpose();
@@ -199,11 +205,11 @@ impl Constraint for AxisConstraint {
         let rotational_correction = normal * lambda;
 
         if state.has_finite_mass(self.body_a) {
-            state.rotate_orientation(self.body_a, state.inverse_inertia_tensor_world[self.body_a] * rotational_correction);
+            state.apply_rotation_vector(self.body_a, state.inverse_inertia_tensor_world[self.body_a] * rotational_correction);
             state.calculate_derived_data(self.body_a);
         }
         if state.has_finite_mass(self.body_b) {
-            state.rotate_orientation(self.body_b, state.inverse_inertia_tensor_world[self.body_b] * -rotational_correction);
+            state.apply_rotation_vector(self.body_b, state.inverse_inertia_tensor_world[self.body_b] * -rotational_correction);
             state.calculate_derived_data(self.body_b);
         }
     }
