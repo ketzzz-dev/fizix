@@ -1,12 +1,13 @@
-[package]
-name = "fizix"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "crates/fizix-core",
+    "crates/fizix-constraints",
+    "crates/fizix-collisions"
+]
+resolver = "2"
 
-[dependencies]
-kiss3d = "0.35.0"
-nalgebra = "0.33.0"
-rand = "0.9.0-alpha.1"
+[workspace.dependencies]
+nalgebra = "0.34.0"
 
 [profile.dev]
 opt-level = 3

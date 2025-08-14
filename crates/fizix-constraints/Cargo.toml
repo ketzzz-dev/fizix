@@ -1,0 +1,8 @@
+[package]
+name = "fizix-constraints"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nalgebra = { workspace = true }
+fizix-core = { path = "../fizix-core" }

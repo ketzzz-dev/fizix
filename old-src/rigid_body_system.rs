@@ -119,7 +119,13 @@ impl RigidBodySystem {
     /// If the `mass` supplied is infinite, the Rigid Body becomes static (immovable).
     ///
     /// Returns the index of the Rigid Body for direct access from the system.
-    pub fn add_rigid_body(&mut self, position: Point3<Precision>, orientation: UnitQuaternion<Precision>, mass: Precision, inertia_tensor: Matrix3<Precision>) -> usize {
+    pub fn add_rigid_body(
+        &mut self,
+        position: Point3<Precision>,
+        orientation: UnitQuaternion<Precision>,
+        mass: Precision,
+        inertia_tensor: Matrix3<Precision>
+    ) -> usize {
         let transform = Isometry3::from_parts(position.into(), orientation);
         let rotation = transform.rotation.to_rotation_matrix();
 
