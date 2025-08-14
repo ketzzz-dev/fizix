@@ -1,5 +1,5 @@
 use crate::body::BodySet;
 
 pub trait Constraint {
-    fn project(&self, bodies: &mut BodySet);
+    fn project(&mut self, bodies: &mut BodySet);
 }

@@ -40,6 +40,8 @@ impl BodySet {
         let current_orientation = self.orientation[i];
 
         self.orientation[i] = UnitQuaternion::from_scaled_axis(rotation) * current_orientation;
+
+        self.orientation[i].renormalize();
     }
 
     pub fn update_derived_data(&mut self, i: usize) {

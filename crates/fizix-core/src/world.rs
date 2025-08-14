@@ -94,7 +94,7 @@ impl World {
 
             // solve (constraints)
             for _ in 0..self.constraint_iterations {
-                for constraint in self.constraints.iter() {
+                for constraint in self.constraints.iter_mut() {
                     constraint.project(&mut self.bodies);
                 }
             }
