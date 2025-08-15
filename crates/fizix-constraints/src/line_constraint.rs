@@ -42,10 +42,11 @@ impl Constraint for LineConstraint {
             * world_direction.dot(&(world_point_a - world_point_b));
 
         let difference = world_point_a - projected_point;
-        let distance = difference.norm();
+        let distance_squared = difference.norm_squared();
         
-        if distance < EPSILON_SQUARED { return; }
+        if distance_squared < EPSILON_SQUARED { return; }
 
+        let distance = distance_squared.sqrt();
         let normal = difference / distance;
 
         let relative_point_a = world_point_a - bodies.position[body_a];

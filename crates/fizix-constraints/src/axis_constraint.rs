@@ -1,4 +1,4 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON};
+use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON, EPSILON_SQUARED};
 use nalgebra::Vector3;
 
 pub struct AxisConstraint {
@@ -32,10 +32,11 @@ impl Constraint for AxisConstraint {
         let world_axis_b = bodies.transform[body_b].transform_vector(&self.local_axis_b);
 
         let orthogonal = world_axis_a.cross(&world_axis_b);
-        let magnitude = orthogonal.norm();
+        let magnitude_squared = orthogonal.norm_squared();
 
-        if magnitude < EPSILON { return; }
+        if magnitude_squared < EPSILON_SQUARED { return; }
 
+        let magnitude = magnitude_squared.sqrt();
         let normal = orthogonal / magnitude;
 
         let inverse_inertia_a = (bodies.inverse_inertia_tensor_world[body_a] * normal).dot(&normal);

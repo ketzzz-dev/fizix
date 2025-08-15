@@ -1,4 +1,4 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON};
+use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON, EPSILON_SQUARED};
 use nalgebra::Point3;
 
 pub struct PointConstraint {
@@ -32,9 +32,11 @@ impl Constraint for PointConstraint {
         let world_point_b = bodies.transform[body_b].transform_point(&self.local_point_b);
 
         let difference = world_point_a - world_point_b;
-        let distance = difference.norm();
+        let distance_squared = difference.norm_squared();
 
-        if distance < EPSILON { return; }
+        if distance_squared < EPSILON_SQUARED { return; }
+
+        let distance = distance_squared.sqrt();
         let normal = difference / distance;
 
         let relative_point_a = world_point_a - bodies.position[body_a];
