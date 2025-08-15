@@ -1,29 +1,17 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON};
+use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON, EPSILON_SQUARED};
 use nalgebra::Point3;
 
-pub struct PointConstraint {
+
+pub struct DistanceConstraint {
     body_a: BodyHandle, body_b: BodyHandle,
 
     local_point_a: Point3<Precision>,
-    local_point_b: Point3<Precision>
-}
-impl PointConstraint {
-    pub fn new(
-        body_a: BodyHandle, body_b: BodyHandle,
+    local_point_b: Point3<Precision>,
 
-        local_point_a: Point3<Precision>,
-        local_point_b: Point3<Precision>
-    ) -> Self {
-        Self {
-            body_a, body_b,
-
-            local_point_a,
-            local_point_b
-        }
-    }
+    distance: Precision
 }
 
-impl Constraint for PointConstraint {
+impl Constraint for DistanceConstraint {
     fn project(&mut self, bodies: &mut BodySet) {
         let body_a = self.body_a.0;
         let body_b = self.body_b.0;
@@ -32,9 +20,12 @@ impl Constraint for PointConstraint {
         let world_point_b = bodies.transform[body_b].transform_point(&self.local_point_b);
 
         let difference = world_point_a - world_point_b;
-        let distance = difference.norm();
+        let distance_squared = difference.norm_squared();
 
-        if distance < EPSILON { return; }
+        if distance_squared < EPSILON_SQUARED { return; }
+
+        let distance = distance_squared.sqrt();
+        let error = distance - self.distance;
         let normal = difference / distance;
 
         let relative_point_a = world_point_a - bodies.position[body_a];
@@ -50,7 +41,7 @@ impl Constraint for PointConstraint {
 
         if total_inverse_mass < EPSILON { return; }
 
-        let lambda = -distance / total_inverse_mass;
+        let lambda = -error / total_inverse_mass;
         let translational_correction = normal * lambda;
 
         if bodies.has_finite_mass(body_a) {

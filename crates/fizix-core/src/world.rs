@@ -1,4 +1,4 @@
-use crate::{body::{BodyHandle, BodySet}, constraint::Constraint, Precision};
+use crate::{BodyHandle, BodySet, Constraint, Precision};
 use nalgebra::{Isometry3, Matrix3, Point3, UnitQuaternion, Vector3};
 
 pub struct World {
@@ -29,7 +29,7 @@ impl World {
         inertia_tensor: Matrix3<Precision>
     ) -> BodyHandle {
         let transform = Isometry3::from_parts(position.into(), orientation);
-        let rotation = transform.rotation.to_rotation_matrix();
+        let rotation = orientation.to_rotation_matrix();
 
         let is_mass_valid = mass.is_finite() && mass > 0.0;
         let inverse_mass = if is_mass_valid { 1.0 / mass } else { 0.0 };
@@ -61,7 +61,8 @@ impl World {
         BodyHandle(self.bodies.position.len() - 1)
     }
 
-    pub fn add_constraint<C: Constraint + 'static>(&mut self, constraint: C) {
+    pub fn add_constraint<C>(&mut self, constraint: C)
+    where C: Constraint + 'static {
         self.constraints.push(Box::new(constraint));
     }
 

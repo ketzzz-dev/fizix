@@ -1,4 +1,4 @@
-use fizix_core::{body::{BodyHandle, BodySet}, constraint::Constraint, Precision, EPSILON};
+use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON, EPSILON_SQUARED};
 use nalgebra::{Point3, Vector3};
 
 pub struct LineConstraint {
@@ -34,8 +34,6 @@ impl Constraint for LineConstraint {
         let body_a: usize = self.body_a.0;
         let body_b = self.body_b.0;
 
-        if !bodies.has_finite_mass(body_a) && !bodies.has_finite_mass(body_b) { return };
-
         let world_point_a = bodies.transform[body_a].transform_point(&self.local_point_a);
         let world_point_b = bodies.transform[body_b].transform_point(&self.local_point_b);
         let world_direction = bodies.transform[body_b].transform_vector(&self.local_axis);
@@ -46,7 +44,7 @@ impl Constraint for LineConstraint {
         let difference = world_point_a - projected_point;
         let distance = difference.norm();
         
-        if distance < EPSILON { return; }
+        if distance < EPSILON_SQUARED { return; }
 
         let normal = difference / distance;
 
@@ -56,10 +54,12 @@ impl Constraint for LineConstraint {
         let perpendicular_a = relative_point_a.cross(&normal);
         let perpendicular_b = relative_point_b.cross(&normal);
 
-        let inverse_inertia_a = (perpendicular_a.transpose() * bodies.inverse_inertia_tensor_world[body_a] * perpendicular_a).x;
-        let inverse_inertia_b = (perpendicular_b.transpose() * bodies.inverse_inertia_tensor_world[body_b] * perpendicular_b).x;
+        let inverse_inertia_a = (bodies.inverse_inertia_tensor_world[body_a] * perpendicular_a).dot(&perpendicular_a);
+        let inverse_inertia_b = (bodies.inverse_inertia_tensor_world[body_b] * perpendicular_b).dot(&perpendicular_b);
 
         let total_inverse_mass = bodies.inverse_mass[body_a] + bodies.inverse_mass[body_b] + inverse_inertia_a + inverse_inertia_b;
+
+        if total_inverse_mass < EPSILON { return; }
 
         let lambda = -distance / total_inverse_mass;
         let translational_correction = normal * lambda;

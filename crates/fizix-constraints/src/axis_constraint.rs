@@ -1,4 +1,4 @@
-use fizix_core::{body::{BodyHandle, BodySet}, constraint::Constraint, Precision, EPSILON};
+use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON};
 use nalgebra::Vector3;
 
 pub struct AxisConstraint {
@@ -28,8 +28,6 @@ impl Constraint for AxisConstraint {
         let body_a: usize = self.body_a.0;
         let body_b: usize = self.body_b.0;
 
-        if !bodies.has_finite_mass(body_a) && !bodies.has_finite_mass(body_b) { return };
-
         let world_axis_a = bodies.transform[body_a].transform_vector(&self.local_axis_a);
         let world_axis_b = bodies.transform[body_b].transform_vector(&self.local_axis_b);
 
@@ -39,12 +37,13 @@ impl Constraint for AxisConstraint {
         if magnitude < EPSILON { return; }
 
         let normal = orthogonal / magnitude;
-        let normal_transpose = normal.transpose();
 
-        let inverse_inertia_a = (normal_transpose * bodies.inverse_inertia_tensor_world[body_a] * normal).x;
-        let inverse_inertia_b = (normal_transpose * bodies.inverse_inertia_tensor_world[body_b] * normal).x;
+        let inverse_inertia_a = (bodies.inverse_inertia_tensor_world[body_a] * normal).dot(&normal);
+        let inverse_inertia_b = (bodies.inverse_inertia_tensor_world[body_b] * normal).dot(&normal);
 
         let total_inverse_mass = inverse_inertia_a + inverse_inertia_b;
+
+        if total_inverse_mass < EPSILON { return; }
 
         let lambda = -magnitude / total_inverse_mass;
         let rotational_correction = normal * lambda;
