@@ -9,4 +9,4 @@ pub const EPSILON_SQUARED: Precision = EPSILON * EPSILON;
 
 pub use world::World;
 pub use body::{BodyHandle, BodySet};
-pub use constraint::Constraint;
+pub use constraint::{CorrectionData, Constraint};

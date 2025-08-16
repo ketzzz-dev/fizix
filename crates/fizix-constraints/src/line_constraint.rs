@@ -1,5 +1,5 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON, EPSILON_SQUARED};
-use nalgebra::{Point3, Vector3};
+use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON_SQUARED};
+use nalgebra::{Point3, UnitVector3};
 
 pub struct LineConstraint {
     body_a: BodyHandle, body_b: BodyHandle,
@@ -7,7 +7,7 @@ pub struct LineConstraint {
     local_point_a: Point3<Precision>,
     local_point_b: Point3<Precision>,
 
-    local_axis: Vector3<Precision> // relative to B
+    local_axis: UnitVector3<Precision> // relative to B
 }
 impl LineConstraint {
     pub fn new(
@@ -16,7 +16,7 @@ impl LineConstraint {
         local_point_a: Point3<Precision>,
         local_point_b: Point3<Precision>,
 
-        local_axis: Vector3<Precision>
+        local_axis: UnitVector3<Precision>
     ) -> Self {
         Self {
             body_a, body_b,
@@ -30,7 +30,7 @@ impl LineConstraint {
 }
 
 impl Constraint for LineConstraint {
-    fn project(&mut self, bodies: &mut BodySet) {
+    fn compute_correction_data(&self, bodies: &BodySet) -> Option<CorrectionData> {
         let body_a: usize = self.body_a.0;
         let body_b = self.body_b.0;
 
@@ -44,7 +44,7 @@ impl Constraint for LineConstraint {
         let difference = world_point_a - projected_point;
         let distance_squared = difference.norm_squared();
         
-        if distance_squared < EPSILON_SQUARED { return; }
+        if distance_squared < EPSILON_SQUARED { return None; }
 
         let distance = distance_squared.sqrt();
         let normal = difference / distance;
@@ -52,34 +52,11 @@ impl Constraint for LineConstraint {
         let relative_point_a = world_point_a - bodies.position[body_a];
         let relative_point_b = projected_point - bodies.position[body_b];
 
-        let perpendicular_a = relative_point_a.cross(&normal);
-        let perpendicular_b = relative_point_b.cross(&normal);
-
-        let inverse_inertia_a = (bodies.inverse_inertia_tensor_world[body_a] * perpendicular_a).dot(&perpendicular_a);
-        let inverse_inertia_b = (bodies.inverse_inertia_tensor_world[body_b] * perpendicular_b).dot(&perpendicular_b);
-
-        let total_inverse_mass = bodies.inverse_mass[body_a] + bodies.inverse_mass[body_b] + inverse_inertia_a + inverse_inertia_b;
-
-        if total_inverse_mass < EPSILON { return; }
-
-        let lambda = -distance / total_inverse_mass;
-        let translational_correction = normal * lambda;
-
-        if bodies.has_finite_mass(body_a) {
-            let rotational_correction = relative_point_a.cross(&translational_correction);
-
-            bodies.position[body_a] += bodies.inverse_mass[body_a] * translational_correction;
-
-            bodies.apply_rotation_delta(body_a, bodies.inverse_inertia_tensor_world[body_a] * rotational_correction);
-            bodies.update_derived_data(body_a);
-        }
-        if bodies.has_finite_mass(body_b) {
-            let rotational_correction = relative_point_b.cross(&translational_correction);
-
-            bodies.position[body_b] -= bodies.inverse_mass[body_b] * translational_correction;
-
-            bodies.apply_rotation_delta(body_b, bodies.inverse_inertia_tensor_world[body_b] * -rotational_correction);
-            bodies.update_derived_data(body_b);
-        }
+        Some(CorrectionData::Translational {
+            error: distance,
+            body_handles: vec![self.body_a, self.body_b],
+            relative_points: vec![relative_point_a.into(), relative_point_b.into()], 
+            normals: vec![normal, -normal]
+        })
     }
 }

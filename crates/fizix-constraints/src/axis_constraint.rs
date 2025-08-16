@@ -1,4 +1,4 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, Precision, EPSILON, EPSILON_SQUARED};
+use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON_SQUARED};
 use nalgebra::Vector3;
 
 pub struct AxisConstraint {
@@ -24,7 +24,7 @@ impl AxisConstraint {
 }
 
 impl Constraint for AxisConstraint {
-    fn project(&mut self, bodies: &mut BodySet) {
+    fn compute_correction_data(&self, bodies: &BodySet) -> Option<CorrectionData> {
         let body_a: usize = self.body_a.0;
         let body_b: usize = self.body_b.0;
 
@@ -34,28 +34,15 @@ impl Constraint for AxisConstraint {
         let orthogonal = world_axis_a.cross(&world_axis_b);
         let magnitude_squared = orthogonal.norm_squared();
 
-        if magnitude_squared < EPSILON_SQUARED { return; }
+        if magnitude_squared < EPSILON_SQUARED { return None; }
 
         let magnitude = magnitude_squared.sqrt();
-        let normal = orthogonal / magnitude;
+        let axis = orthogonal / magnitude;
 
-        let inverse_inertia_a = (bodies.inverse_inertia_tensor_world[body_a] * normal).dot(&normal);
-        let inverse_inertia_b = (bodies.inverse_inertia_tensor_world[body_b] * normal).dot(&normal);
-
-        let total_inverse_mass = inverse_inertia_a + inverse_inertia_b;
-
-        if total_inverse_mass < EPSILON { return; }
-
-        let lambda = -magnitude / total_inverse_mass;
-        let rotational_correction = normal * lambda;
-
-        if bodies.has_finite_mass(body_a) {
-            bodies.apply_rotation_delta(body_a, bodies.inverse_inertia_tensor_world[body_a] * rotational_correction);
-            bodies.update_derived_data(body_a);
-        }
-        if bodies.has_finite_mass(body_b) {
-            bodies.apply_rotation_delta(body_b, bodies.inverse_inertia_tensor_world[body_b] * -rotational_correction);
-            bodies.update_derived_data(body_b);
-        }
+        Some(CorrectionData::Rotational {
+            error: magnitude,
+            body_handles: vec![self.body_a, self.body_b],
+            axes: vec![axis, -axis]
+        })
     }
 }
