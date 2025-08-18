@@ -1,4 +1,4 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON_SQUARED};
+use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON};
 use nalgebra::Vector3;
 
 pub struct AxisConstraint {
@@ -31,16 +31,19 @@ impl Constraint for AxisConstraint {
         let world_axis_a = bodies.transform[body_a].transform_vector(&self.local_axis_a);
         let world_axis_b = bodies.transform[body_b].transform_vector(&self.local_axis_b);
 
-        let orthogonal = world_axis_a.cross(&world_axis_b);
-        let magnitude_squared = orthogonal.norm_squared();
+        let cross = world_axis_a.cross(&world_axis_b);
+        
+        let sin_theta = cross.norm();
+        let cos_theta = world_axis_a.dot(&world_axis_b).clamp(-1.0, 1.0);
 
-        if magnitude_squared < EPSILON_SQUARED { return None; }
+        let angle_error = sin_theta.atan2(cos_theta);
 
-        let magnitude = magnitude_squared.sqrt();
-        let axis = orthogonal / magnitude;
+        if angle_error.abs() < EPSILON { return None; }
+
+        let axis = cross / sin_theta;
 
         Some(CorrectionData::Rotational {
-            error: magnitude,
+            error: angle_error,
             body_handles: vec![self.body_a, self.body_b],
             axes: vec![axis, -axis]
         })

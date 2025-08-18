@@ -2,6 +2,7 @@ use nalgebra::{Point3, Vector3};
 
 use crate::{BodyHandle, BodySet, Precision, EPSILON};
 
+/// Represents the geometric and kinematic data required for constraint correction.
 pub enum CorrectionData {
     Translational {
         error: Precision,
@@ -15,21 +16,6 @@ pub enum CorrectionData {
 
         body_handles: Vec<BodyHandle>,
         axes: Vec<Vector3<Precision>>
-    }
-}
-
-impl CorrectionData {
-    pub fn get_error(&self) -> Precision {
-        match self {
-            Self::Translational { error, .. } => *error,
-            Self::Rotational { error, .. } => *error
-        }
-    }
-    pub fn get_body_handles(&self) -> &[BodyHandle] {
-        match self {
-            Self::Translational { body_handles, .. } => body_handles,
-            Self::Rotational { body_handles, .. } => body_handles
-        }
     }
 }
 
@@ -79,15 +65,15 @@ pub trait Constraint {
     }
 
     fn apply_rotational_correction(&self, bodies: &mut BodySet, body_handles: &[BodyHandle], axes: &[Vector3<Precision>], error: Precision) {
-        let mut total_inverse_mass = 0.0;
+        let mut total_inverse_inertia = 0.0;
 
         for (i, &BodyHandle(body_index)) in body_handles.iter().enumerate() {
-            total_inverse_mass += (bodies.inverse_inertia_tensor_world[body_index] * axes[i]).dot(&axes[i]);
+            total_inverse_inertia += (bodies.inverse_inertia_tensor_world[body_index] * axes[i]).dot(&axes[i]);
         }
 
-        if total_inverse_mass < EPSILON { return; }
+        if total_inverse_inertia < EPSILON { return; }
 
-        let lambda = -error / total_inverse_mass;
+        let lambda = -error / total_inverse_inertia;
 
         for (i, &BodyHandle(body_index)) in body_handles.iter().enumerate() {
             if !bodies.has_finite_mass(body_index) { continue; }
