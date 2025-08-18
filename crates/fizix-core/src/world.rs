@@ -1,5 +1,5 @@
 use crate::{BodyHandle, BodySet, Constraint, Precision};
-use nalgebra::{Isometry3, Matrix3, Point3, UnitQuaternion, Vector3};
+use nalgebra::{Matrix3, Point3, UnitQuaternion, Vector3};
 
 pub struct World {
     pub bodies: BodySet,
@@ -28,7 +28,6 @@ impl World {
         mass: Precision,
         inertia_tensor: Matrix3<Precision>
     ) -> BodyHandle {
-        let transform = Isometry3::from_parts(position.into(), orientation);
         let rotation = orientation.to_rotation_matrix();
 
         let is_mass_valid = mass.is_finite() && mass > 0.0;
@@ -56,9 +55,8 @@ impl World {
         self.bodies.inverse_inertia_tensor_local.push(inverse_inertia_tensor);
 
         self.bodies.inverse_inertia_tensor_world.push(inverse_inertia_tensor_world);
-        self.bodies.transform.push(transform);
 
-        BodyHandle(self.bodies.position.len() - 1)
+        BodyHandle::new(self.bodies.position.len() - 1)
     }
 
     pub fn add_constraint<C>(&mut self, constraint: C)
@@ -96,7 +94,7 @@ impl World {
             // solve (constraints)
             for _ in 0..self.constraint_iterations {
                 for constraint in &mut self.constraints {
-                    constraint.apply_correction(&mut self.bodies);
+                    constraint.solve(&mut self.bodies);
                 }
             }
 
@@ -107,11 +105,7 @@ impl World {
                 let delta_orientation = self.bodies.orientation[i] * self.bodies.last_orientation[i].conjugate();
 
                 self.bodies.linear_velocity[i] = (self.bodies.position[i] - self.bodies.last_position[i]) * inverse_delta_time;
-                self.bodies.angular_velocity[i] = 2.0 * delta_orientation.imag() * inverse_delta_time;
-
-                if delta_orientation.w < 0.0 {
-                    self.bodies.angular_velocity[i].neg_mut();
-                }
+                self.bodies.angular_velocity[i] = delta_orientation.scaled_axis() * inverse_delta_time;
             }
         }
     }

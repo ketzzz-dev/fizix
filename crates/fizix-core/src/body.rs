@@ -1,8 +1,24 @@
+use std::ops::Deref;
+
 use crate::Precision;
-use nalgebra::{Isometry3, Matrix3, Point3, UnitQuaternion, Vector3};
+use nalgebra::{Matrix3, Point3, UnitQuaternion, Vector3};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct BodyHandle(pub usize);
+pub struct BodyHandle(usize);
+
+impl BodyHandle {
+    pub fn new(index: usize) -> Self {
+        Self(index)
+    }
+}
+
+impl Deref for BodyHandle {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 
 #[derive(Default)]
@@ -24,14 +40,15 @@ pub struct BodySet {
 
     // derived data
     pub inverse_inertia_tensor_world: Vec<Matrix3<Precision>>,
-    pub transform: Vec<Isometry3<Precision>>,
 }
 
 impl BodySet {
+    #[inline]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[inline]
     pub fn has_finite_mass(&self, i: usize) -> bool {
         self.inverse_mass[i] > 0.0
     }
@@ -45,10 +62,8 @@ impl BodySet {
     }
 
     pub fn update_derived_data(&mut self, i: usize) {
-        self.transform[i] = Isometry3::from_parts(self.position[i].into(), self.orientation[i]);
+        let rotation_matrix= self.orientation[i].to_rotation_matrix();
         
-        let rotation_matrix = self.transform[i].rotation.to_rotation_matrix();
-
         self.inverse_inertia_tensor_world[i] = rotation_matrix * self.inverse_inertia_tensor_local[i] * rotation_matrix.transpose();
     }
 }
