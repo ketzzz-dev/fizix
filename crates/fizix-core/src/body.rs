@@ -54,16 +54,16 @@ impl BodySet {
     }
 
     pub fn apply_rotation_delta(&mut self, i: usize, rotation: Vector3<Precision>) {
-        let current_orientation = self.orientation[i];
+        let q = self.orientation[i];
 
-        self.orientation[i] = UnitQuaternion::from_scaled_axis(rotation) * current_orientation;
+        self.orientation[i] = UnitQuaternion::from_scaled_axis(rotation) * q;
 
         self.orientation[i].renormalize();
     }
 
     pub fn update_derived_data(&mut self, i: usize) {
-        let rotation_matrix= self.orientation[i].to_rotation_matrix();
+        let rot= self.orientation[i].to_rotation_matrix();
         
-        self.inverse_inertia_tensor_world[i] = rotation_matrix * self.inverse_inertia_tensor_local[i] * rotation_matrix.transpose();
+        self.inverse_inertia_tensor_world[i] = rot * self.inverse_inertia_tensor_local[i] * rot.transpose();
     }
 }

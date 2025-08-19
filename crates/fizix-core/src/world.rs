@@ -64,9 +64,9 @@ impl World {
         self.constraints.push(Box::new(constraint));
     }
 
-    pub fn step(&mut self, delta_time: Precision) {
-        let sub_delta_time = delta_time / self.sub_steps as Precision;
-        let inverse_delta_time = 1.0 / sub_delta_time;
+    pub fn step(&mut self, dt: Precision) {
+        let sub_dt = dt / self.sub_steps as Precision;
+        let inv_dt = 1.0 / sub_dt;
 
         for _ in 0..self.sub_steps {
             // pre-solve (integration)
@@ -76,25 +76,25 @@ impl World {
                 self.bodies.last_position[i] = self.bodies.position[i];
                 self.bodies.last_orientation[i] = self.bodies.orientation[i];
 
-                let linear_acceleration = self.gravity + self.bodies.inverse_mass[i] * self.bodies.force[i];
-                let angular_acceleration = self.bodies.inverse_inertia_tensor_world[i] * self.bodies.torque[i];
+                let linear_acc = self.gravity + self.bodies.inverse_mass[i] * self.bodies.force[i];
+                let angular_acc = self.bodies.inverse_inertia_tensor_world[i] * self.bodies.torque[i];
 
                 self.bodies.force[i] = Vector3::zeros();
                 self.bodies.torque[i] = Vector3::zeros();
                 
-                self.bodies.linear_velocity[i] += linear_acceleration * sub_delta_time;
-                self.bodies.angular_velocity[i] += angular_acceleration * sub_delta_time;
+                self.bodies.linear_velocity[i] += linear_acc * sub_dt;
+                self.bodies.angular_velocity[i] += angular_acc * sub_dt;
 
-                self.bodies.position[i] += self.bodies.linear_velocity[i] * sub_delta_time;
+                self.bodies.position[i] += self.bodies.linear_velocity[i] * sub_dt;
                 
-                self.bodies.apply_rotation_delta(i, self.bodies.angular_velocity[i] * sub_delta_time);
+                self.bodies.apply_rotation_delta(i, self.bodies.angular_velocity[i] * sub_dt);
                 self.bodies.update_derived_data(i);
             }
 
             // solve (constraints)
             for _ in 0..self.constraint_iterations {
                 for constraint in &mut self.constraints {
-                    constraint.solve(&mut self.bodies);
+                    constraint.solve(&mut self.bodies, sub_dt);
                 }
             }
 
@@ -102,10 +102,10 @@ impl World {
             for i in 0..self.bodies.position.len() {
                 if !self.bodies.has_finite_mass(i) { continue; }
 
-                let delta_orientation = self.bodies.orientation[i] * self.bodies.last_orientation[i].conjugate();
+                let delta_q = self.bodies.orientation[i] * self.bodies.last_orientation[i].conjugate();
 
-                self.bodies.linear_velocity[i] = (self.bodies.position[i] - self.bodies.last_position[i]) * inverse_delta_time;
-                self.bodies.angular_velocity[i] = delta_orientation.scaled_axis() * inverse_delta_time;
+                self.bodies.linear_velocity[i] = (self.bodies.position[i] - self.bodies.last_position[i]) * inv_dt;
+                self.bodies.angular_velocity[i] = delta_q.scaled_axis() * inv_dt;
             }
         }
     }

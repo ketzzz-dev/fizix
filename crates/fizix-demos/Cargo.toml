@@ -1,0 +1,10 @@
+[package]
+name = "fizix-demos"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+kiss3d = "0.35.0"
+nalgebra = { workspace = true }
+fizix-core = { path = "../fizix-core" }
+fizix-constraints = { path = "../fizix-constraints" }

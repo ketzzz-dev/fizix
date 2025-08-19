@@ -1,3 +1,5 @@
-mod ball_joint_constraint;
+mod revolute_joint;
+mod spherical_joint;
 
-pub use ball_joint_constraint::*;
+pub use revolute_joint::*;
+pub use spherical_joint::*;
