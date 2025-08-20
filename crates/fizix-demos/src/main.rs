@@ -52,7 +52,7 @@ fn main() {
         arm2, 
         Point3::new(0.0, -2.5, 0.0),
         Point3::new(0.0, 2.5, 0.0),
-        0.0
+        1.0 / 1000.0
     );
 
     world.add_constraint(joint1);

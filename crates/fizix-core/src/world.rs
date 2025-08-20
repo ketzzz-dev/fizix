@@ -69,7 +69,7 @@ impl World {
         let inv_dt = 1.0 / sub_dt;
 
         for _ in 0..self.sub_steps {
-            // pre-solve (integration)
+            // integration
             for i in 0..self.bodies.position.len() {
                 if !self.bodies.has_finite_mass(i) { continue; }
 
@@ -91,14 +91,14 @@ impl World {
                 self.bodies.update_derived_data(i);
             }
 
-            // solve (constraints)
+            // constraint solve
             for _ in 0..self.constraint_iterations {
                 for constraint in &mut self.constraints {
                     constraint.solve(&mut self.bodies, sub_dt);
                 }
             }
 
-            // post-solve (velocity update)
+            // velocity update
             for i in 0..self.bodies.position.len() {
                 if !self.bodies.has_finite_mass(i) { continue; }
 

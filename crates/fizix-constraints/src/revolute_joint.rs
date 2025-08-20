@@ -11,11 +11,7 @@ pub struct RevoluteJoint {
     pub local_axis_a: UnitVector3<Precision>,
     pub local_axis_b: UnitVector3<Precision>,
 
-    pub compliance: Precision, // inverse stiffness
-
-    // accumulated impulses
-    lambda_pos: Precision,
-    lambda_rot: Precision,
+    pub compliance: Precision
 }
 
 impl RevoluteJoint {
@@ -41,10 +37,7 @@ impl RevoluteJoint {
             local_axis_a,
             local_axis_b,
 
-            compliance,
-
-            lambda_pos: 0.0,
-            lambda_rot: 0.0,
+            compliance
         }
     }
 }
@@ -86,7 +79,7 @@ impl Constraint for RevoluteJoint {
 
         if distance_sq > EPSILON_SQUARED {
             let distance = distance_sq.sqrt();
-            let delta = difference / distance; // normalized direction vector from body A to body B
+            let delta = difference / distance;
 
             let perp_a = r_a.coords.cross(&delta);
             let perp_b = r_b.coords.cross(&delta);
@@ -99,10 +92,8 @@ impl Constraint for RevoluteJoint {
 
             if denom > EPSILON {
                 // compute the impulse to apply
-                let d_lambda = -(distance - self.lambda_pos * alpha_t) / denom;
+                let d_lambda = -distance / denom;
                 let d_x = delta * d_lambda;
-
-                self.lambda_pos += d_lambda;
 
                 if bodies.has_finite_mass(body_a) {
                     let d_theta = -r_a.coords.cross(&d_x);
@@ -144,7 +135,7 @@ impl Constraint for RevoluteJoint {
         let angle = sin_theta.atan2(cos_theta);
 
         if angle.abs() > EPSILON {
-            let axis = cross / sin_theta; // normalized axis of rotation
+            let axis = cross / sin_theta;
 
             let w_a = (inv_inertia_a * axis).dot(&axis);
             let w_b = (inv_inertia_b * axis).dot(&axis);
@@ -153,10 +144,8 @@ impl Constraint for RevoluteJoint {
 
             if denom > EPSILON {
                 // compute the impulse to apply
-                let d_lambda = -(angle - self.lambda_rot * alpha_t) / denom;
+                let d_lambda = -angle / denom;
                 let d_theta = axis * d_lambda;
-
-                self.lambda_rot += d_lambda;
 
                 if bodies.has_finite_mass(body_a) {
                     bodies.apply_rotation_delta(body_a, inv_inertia_a * -d_theta);
