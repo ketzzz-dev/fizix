@@ -1,5 +1,5 @@
-use crate::{BodySet, Precision};
+use crate::{Body, Precision};
 
 pub trait Constraint {
-    fn solve(&mut self, bodies: &mut BodySet, dt: Precision);
+    fn solve(&mut self, bodies: &mut [Body], dt: Precision);
 }

@@ -1,4 +1,4 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, EPSILON, EPSILON_SQUARED, Precision};
+use fizix_core::{get_two_mut, Body, BodyHandle, Constraint, Precision, EPSILON, EPSILON_SQUARED};
 use nalgebra::{Point3, UnitVector3};
 
 pub struct RevoluteJoint {
@@ -43,21 +43,24 @@ impl RevoluteJoint {
 }
 
 impl Constraint for RevoluteJoint {
-    fn solve(&mut self, bodies: &mut BodySet, dt: Precision) {
-        let body_a = *self.body_a;
-        let body_b = *self.body_b;
+    fn solve(&mut self, bodies: &mut [Body], dt: Precision) {
+        let (body_a, body_b) = if let Some((a, b)) = get_two_mut(bodies, *self.body_a, *self.body_b) {
+            (a, b)
+        } else {
+            return; // Invalid handles
+        };
 
-        let pos_a = bodies.position[body_a];
-        let pos_b = bodies.position[body_b];
+        let pos_a = body_a.position;
+        let pos_b = body_b.position;
 
-        let orient_a = bodies.orientation[body_a];
-        let orient_b = bodies.orientation[body_b];
+        let orient_a = body_a.orientation;
+        let orient_b = body_b.orientation;
 
-        let inv_mass_a = bodies.inverse_mass[body_a];
-        let inv_mass_b = bodies.inverse_mass[body_b];
+        let inv_mass_a = body_a.inverse_mass;
+        let inv_mass_b = body_b.inverse_mass;
 
-        let inv_inertia_a = bodies.inverse_inertia_tensor_world[body_a];
-        let inv_inertia_b = bodies.inverse_inertia_tensor_world[body_b];
+        let inv_inertia_a = body_a.inverse_inertia_world;
+        let inv_inertia_b = body_b.inverse_inertia_world;
 
         // relative space anchor points
         let r_a = orient_a.transform_point(&self.local_anchor_a);
@@ -95,31 +98,29 @@ impl Constraint for RevoluteJoint {
                 let d_lambda = -distance / denom;
                 let d_x = delta * d_lambda;
 
-                if bodies.has_finite_mass(body_a) {
+                if body_a.has_finite_mass() {
                     let d_theta = -r_a.coords.cross(&d_x);
 
-                    bodies.position[body_a] -= inv_mass_a * d_x;
+                    body_a.position -= inv_mass_a * d_x;
 
-                    bodies.apply_rotation_delta(body_a, inv_inertia_a * d_theta);
-                    bodies.update_derived_data(body_a);
+                    body_a.apply_rotation_delta(inv_inertia_a * d_theta);
                 }
-                if bodies.has_finite_mass(body_b) {
+                if body_b.has_finite_mass() {
                     let d_theta = r_b.coords.cross(&d_x);
 
-                    bodies.position[body_b] += inv_mass_b * d_x;
+                    body_b.position += inv_mass_b * d_x;
 
-                    bodies.apply_rotation_delta(body_b, inv_inertia_b * d_theta);
-                    bodies.update_derived_data(body_b);
+                    body_b.apply_rotation_delta(inv_inertia_b * d_theta);
                 }
             }
         }
 
         // recompute orientaton and inertia tensors after position update
-        let orient_a = bodies.orientation[body_a];
-        let orient_b = bodies.orientation[body_b];
+        let orient_a = body_a.orientation;
+        let orient_b = body_b.orientation;
 
-        let inv_inertia_a = bodies.inverse_inertia_tensor_world[body_a];
-        let inv_inertia_b = bodies.inverse_inertia_tensor_world[body_b];
+        let inv_inertia_a = body_a.inverse_inertia_world;
+        let inv_inertia_b = body_b.inverse_inertia_world;
 
         // world space axis vectors
         let u_a = orient_a.transform_vector(&self.local_axis_a);
@@ -147,13 +148,11 @@ impl Constraint for RevoluteJoint {
                 let d_lambda = -angle / denom;
                 let d_theta = axis * d_lambda;
 
-                if bodies.has_finite_mass(body_a) {
-                    bodies.apply_rotation_delta(body_a, inv_inertia_a * -d_theta);
-                    bodies.update_derived_data(body_a);
+                if body_a.has_finite_mass() {
+                    body_a.apply_rotation_delta(inv_inertia_a * -d_theta);
                 }
-                if bodies.has_finite_mass(body_b) {
-                    bodies.apply_rotation_delta(body_b, inv_inertia_b * d_theta);
-                    bodies.update_derived_data(body_b);
+                if body_b.has_finite_mass() {
+                    body_b.apply_rotation_delta(inv_inertia_b * d_theta);
                 }
             }
         }
