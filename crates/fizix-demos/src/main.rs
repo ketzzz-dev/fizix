@@ -85,7 +85,7 @@ fn main() {
         let fps = fps_samples.len() as f64 / fps_samples.iter().sum::<f64>();
 
         window.draw_text(
-            &format!("Body Count: {}\nConstraint Count: {}\nFPS: {:.0}", world.bodies.len(), world.constraints.len(), fps),
+            &format!("Body Count: {}\nConstraint Count: {}\nFPS: {:.0}", world.bodies.position.len(), world.constraints.len(), fps),
             &kiss3d::nalgebra::Point2::new(10.0, 10.0),
             42.0,
             &Font::default(),
@@ -93,8 +93,8 @@ fn main() {
         );
         
         for (i, node) in nodes.iter_mut().enumerate() {
-            let position = world.bodies[i].position;
-            let orientation = world.bodies[i].orientation;
+            let position = world.bodies.position[i];
+            let orientation = world.bodies.orientation[i];
             let orientation = kiss3d::nalgebra::Quaternion::new(
                 orientation.w as f32,
                 orientation.i as f32,

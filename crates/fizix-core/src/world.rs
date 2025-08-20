@@ -1,8 +1,8 @@
-use crate::{Body, BodyHandle, Constraint, Precision};
+use crate::{BodyHandle, BodySet, Constraint, Precision};
 use nalgebra::{Matrix3, Point3, UnitQuaternion, Vector3};
 
 pub struct World {
-    pub bodies: Vec<Body>,
+    pub bodies: BodySet,
     pub constraints: Vec<Box<dyn Constraint>>,
 
     pub gravity: Vector3<Precision>,
@@ -14,7 +14,7 @@ pub struct World {
 impl World {
     pub fn new(gravity: Vector3<Precision>, sub_steps: usize, constraint_iterations: usize) -> Self {
         Self {
-            bodies: Vec::new(),
+            bodies: BodySet::new(),
             constraints: Vec::new(),
 
             gravity, sub_steps, constraint_iterations
@@ -32,25 +32,31 @@ impl World {
 
         let is_mass_valid = mass.is_finite() && mass > 0.0;
         let inverse_mass = if is_mass_valid { 1.0 / mass } else { 0.0 };
-        let inverse_inertia_local = if is_mass_valid {
+        let inverse_inertia_tensor = if is_mass_valid {
             inertia_tensor.try_inverse().unwrap_or(Matrix3::zeros())
         } else {
             Matrix3::zeros()
         };
-        let inverse_inertia_world = rotation * inverse_inertia_local * rotation.transpose();
+        let inverse_inertia_tensor_world = rotation * inverse_inertia_tensor * rotation.transpose();
 
-        self.bodies.push(Body {
-            position,
-            orientation,
+        self.bodies.position.push(position);
+        self.bodies.orientation.push(orientation);
 
-            inverse_mass,
-            inverse_inertia_local,
-            inverse_inertia_world,
+        self.bodies.last_position.push(position);
+        self.bodies.last_orientation.push(orientation);
 
-            ..Default::default()
-        });
+        self.bodies.linear_velocity.push(Vector3::zeros());
+        self.bodies.angular_velocity.push(Vector3::zeros());
 
-        BodyHandle::new(self.bodies.len() - 1)
+        self.bodies.force.push(Vector3::zeros());
+        self.bodies.torque.push(Vector3::zeros());
+
+        self.bodies.inverse_mass.push(inverse_mass);
+        self.bodies.inverse_inertia_tensor_local.push(inverse_inertia_tensor);
+
+        self.bodies.inverse_inertia_tensor_world.push(inverse_inertia_tensor_world);
+
+        BodyHandle::new(self.bodies.position.len() - 1)
     }
 
     pub fn add_constraint<C>(&mut self, constraint: C)
@@ -64,24 +70,25 @@ impl World {
 
         for _ in 0..self.sub_steps {
             // integration
-            for body in &mut self.bodies {
-                if !body.has_finite_mass() { continue; }
+            for i in 0..self.bodies.position.len() {
+                if !self.bodies.has_finite_mass(i) { continue; }
 
-                body.last_position = body.position;
-                body.last_orientation = body.orientation;
+                self.bodies.last_position[i] = self.bodies.position[i];
+                self.bodies.last_orientation[i] = self.bodies.orientation[i];
 
-                let linear_acc = self.gravity + body.inverse_mass * body.force;
-                let angular_acc = body.inverse_inertia_world * body.torque;
+                let linear_acc = self.gravity + self.bodies.inverse_mass[i] * self.bodies.force[i];
+                let angular_acc = self.bodies.inverse_inertia_tensor_world[i] * self.bodies.torque[i];
 
-                body.force = Vector3::zeros();
-                body.torque = Vector3::zeros();
+                self.bodies.force[i] = Vector3::zeros();
+                self.bodies.torque[i] = Vector3::zeros();
+                
+                self.bodies.linear_velocity[i] += linear_acc * sub_dt;
+                self.bodies.angular_velocity[i] += angular_acc * sub_dt;
 
-                body.linear_velocity += linear_acc * sub_dt;
-                body.angular_velocity += angular_acc * sub_dt;
-
-                body.position += body.linear_velocity * sub_dt;
-
-                body.apply_rotation_delta(body.angular_velocity * sub_dt);
+                self.bodies.position[i] += self.bodies.linear_velocity[i] * sub_dt;
+                
+                self.bodies.apply_rotation_delta(i, self.bodies.angular_velocity[i] * sub_dt);
+                self.bodies.update_derived_data(i);
             }
 
             // constraint solve
@@ -92,13 +99,13 @@ impl World {
             }
 
             // velocity update
-            for body in &mut self.bodies {
-                if !body.has_finite_mass() { continue; }
+            for i in 0..self.bodies.position.len() {
+                if !self.bodies.has_finite_mass(i) { continue; }
 
-                let delta_q = body.orientation * body.last_orientation.conjugate();
+                let delta_q = self.bodies.orientation[i] * self.bodies.last_orientation[i].conjugate();
 
-                body.linear_velocity = (body.position - body.last_position) * inv_dt;
-                body.angular_velocity = delta_q.scaled_axis() * inv_dt;
+                self.bodies.linear_velocity[i] = (self.bodies.position[i] - self.bodies.last_position[i]) * inv_dt;
+                self.bodies.angular_velocity[i] = delta_q.scaled_axis() * inv_dt;
             }
         }
     }

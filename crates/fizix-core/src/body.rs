@@ -20,61 +20,50 @@ impl Deref for BodyHandle {
     }
 }
 
-pub struct Body {
-    pub position: Point3<Precision>,
-    pub orientation: UnitQuaternion<Precision>,
 
-    pub last_position: Point3<Precision>,
-    pub last_orientation: UnitQuaternion<Precision>,
+#[derive(Default)]
+pub struct BodySet {
+    pub position: Vec<Point3<Precision>>,
+    pub orientation: Vec<UnitQuaternion<Precision>>,
 
-    pub linear_velocity: Vector3<Precision>,
-    pub angular_velocity: Vector3<Precision>,
+    pub last_position: Vec<Point3<Precision>>,
+    pub last_orientation: Vec<UnitQuaternion<Precision>>,
 
-    pub force: Vector3<Precision>,
-    pub torque: Vector3<Precision>,
-   
-    pub inverse_mass: Precision,
-    pub inverse_inertia_local: Matrix3<Precision>,
-    pub inverse_inertia_world: Matrix3<Precision>,
+    pub linear_velocity: Vec<Vector3<Precision>>,
+    pub angular_velocity: Vec<Vector3<Precision>>,
+
+    pub force: Vec<Vector3<Precision>>,
+    pub torque: Vec<Vector3<Precision>>,
+
+    pub inverse_mass: Vec<Precision>,
+    pub inverse_inertia_tensor_local: Vec<Matrix3<Precision>>,
+
+    // derived data
+    pub inverse_inertia_tensor_world: Vec<Matrix3<Precision>>,
 }
 
-impl Default for Body {
-    fn default() -> Self {
-        Self {
-            position: Point3::origin(),
-            orientation: UnitQuaternion::identity(),
-
-            last_position: Point3::origin(),
-            last_orientation: UnitQuaternion::identity(),
-
-            linear_velocity: Vector3::zeros(),
-            angular_velocity: Vector3::zeros(),
-
-            force: Vector3::zeros(),
-            torque: Vector3::zeros(),
-
-            inverse_mass: 0.0,
-            inverse_inertia_local: Matrix3::identity(),
-            inverse_inertia_world: Matrix3::identity(),
-        }
-    }
-}
-
-impl Body {
+impl BodySet {
     #[inline]
-    pub fn has_finite_mass(&self) -> bool {
-        self.inverse_mass > 0.0
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn apply_rotation_delta(&mut self, rotation: Vector3<Precision>) {
-        let q = self.orientation;
+    #[inline]
+    pub fn has_finite_mass(&self, i: usize) -> bool {
+        self.inverse_mass[i] > 0.0
+    }
 
-        self.orientation = UnitQuaternion::from_scaled_axis(rotation) * q;
-        self.orientation.renormalize();
+    pub fn apply_rotation_delta(&mut self, i: usize, rotation: Vector3<Precision>) {
+        let q = self.orientation[i];
 
-        // Update the world inertia tensor after changing the orientation
-        let rot = self.orientation.to_rotation_matrix();
+        self.orientation[i] = UnitQuaternion::from_scaled_axis(rotation) * q;
+
+        self.orientation[i].renormalize();
+    }
+
+    pub fn update_derived_data(&mut self, i: usize) {
+        let rot= self.orientation[i].to_rotation_matrix();
         
-        self.inverse_inertia_world = rot * self.inverse_inertia_local * rot.transpose();
+        self.inverse_inertia_tensor_world[i] = rot * self.inverse_inertia_tensor_local[i] * rot.transpose();
     }
 }
