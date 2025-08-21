@@ -79,8 +79,8 @@ impl World {
                 let linear_acc = self.gravity + self.bodies.inverse_mass[i] * self.bodies.force[i];
                 let angular_acc = self.bodies.inverse_inertia_tensor_world[i] * self.bodies.torque[i];
 
-                self.bodies.force[i] = Vector3::zeros();
-                self.bodies.torque[i] = Vector3::zeros();
+                self.bodies.force[i].fill(0.0);
+                self.bodies.torque[i].fill(0.0);
                 
                 self.bodies.linear_velocity[i] += linear_acc * sub_dt;
                 self.bodies.angular_velocity[i] += angular_acc * sub_dt;

@@ -9,6 +9,8 @@ pub struct SphericalJoint {
     pub local_anchor_b: Point3<Precision>,
 
     pub compliance: Precision, // inverse stiffness
+
+    pub lambda: Precision // lagrange multiplier
 }
 
 impl SphericalJoint {
@@ -28,7 +30,9 @@ impl SphericalJoint {
             local_anchor_a,
             local_anchor_b,
 
-            compliance
+            compliance,
+
+            lambda: 0.0
         }
     }
 }
@@ -76,15 +80,14 @@ impl Constraint for SphericalJoint {
             let perp_b = r_b.coords.cross(&delta);
 
             // generalized inverse mass
-            let w_a = inv_mass_a + (inv_inertia_a * perp_a).dot(&perp_a);
-            let w_b = inv_mass_b + (inv_inertia_b * perp_b).dot(&perp_b);
+            let w = inv_mass_a + inv_mass_b + (inv_inertia_a * perp_a).dot(&perp_a) + (inv_inertia_b * perp_b).dot(&perp_b);
 
-            let denom = w_a + w_b + alpha_t;
-
-            if denom > EPSILON {
+            if w > EPSILON {
                 // compute the impulse to apply
-                let d_lambda = -distance / denom;
+                let d_lambda = -(distance + alpha_t * self.lambda) / (w + alpha_t);
                 let d_x = delta * d_lambda;
+
+                self.lambda += d_lambda;
 
                 if bodies.has_finite_mass(body_a) {
                     let d_theta = -r_a.coords.cross(&d_x);

@@ -34,8 +34,8 @@ fn main() {
     let arm2 = world.add_body(
         Point3::new(0.0, 2.5, 25.0),
         UnitQuaternion::from_axis_angle(&Vector3::x_axis(), -FRAC_PI_2),
-        1.0,
-        cylinder_inertia_tensor(0.25, 5.0, 1.0)
+        10.0,
+        cylinder_inertia_tensor(0.25, 5.0, 10.0)
     );
 
     let joint1 = RevoluteJoint::new(
@@ -52,7 +52,7 @@ fn main() {
         arm2, 
         Point3::new(0.0, -2.5, 0.0),
         Point3::new(0.0, 2.5, 0.0),
-        1.0 / 1000.0
+        0.0
     );
 
     world.add_constraint(joint1);
@@ -82,7 +82,7 @@ fn main() {
 
         world.step(elapsed);
 
-        let fps = fps_samples.len() as f64 / fps_samples.iter().sum::<f64>();
+        let fps = fps_samples.len() as Precision / fps_samples.iter().sum::<Precision>();
 
         window.draw_text(
             &format!("Body Count: {}\nConstraint Count: {}\nFPS: {:.0}", world.bodies.position.len(), world.constraints.len(), fps),
