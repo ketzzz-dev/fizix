@@ -59,8 +59,7 @@ impl World {
         BodyHandle::new(self.bodies.position.len() - 1)
     }
 
-    pub fn add_constraint<C>(&mut self, constraint: C)
-    where C: Constraint + 'static {
+    pub fn add_constraint(&mut self, constraint: impl Constraint + 'static) {
         self.constraints.push(Box::new(constraint));
     }
 

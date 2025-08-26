@@ -1,5 +1,9 @@
-mod revolute_joint;
-mod spherical_joint;
+mod angular_constraint;
+mod axis_constraint;
+mod distance_constraint;
+mod linear_constraint;
 
-pub use revolute_joint::*;
-pub use spherical_joint::*;
+pub use angular_constraint::*;
+pub use axis_constraint::*;
+pub use distance_constraint::*;
+pub use linear_constraint::*;

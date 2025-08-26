@@ -7,6 +7,8 @@ use nalgebra::{Matrix3, Point3, UnitQuaternion, Vector3};
 pub struct BodyHandle(usize);
 
 impl BodyHandle {
+    pub const INVALID: Self = Self(usize::MAX);
+
     pub fn new(index: usize) -> Self {
         Self(index)
     }

@@ -1,11 +1,9 @@
-use std::f64::consts::{FRAC_PI_2};
 use std::time::Instant;
-use fizix_constraints::{RevoluteJoint, SphericalJoint};
 use fizix_core::{Precision, World};
 use kiss3d::light::Light;
 use kiss3d::text::Font;
 use kiss3d::window::{Window};
-use nalgebra::{Matrix3, Point3, UnitQuaternion, UnitVector3, Vector3};
+use nalgebra::{Matrix3, Vector3};
 
 const ORANGE: (f32, f32, f32) = (244.0 / 255.0, 115.9 / 255.0, 51.0 / 255.0); // primary color
 const LIGHT_GRAY: (f32, f32, f32) = (108.0 / 255.0, 112.0 / 255.0, 134.0 / 255.0); // secondary color
@@ -19,54 +17,7 @@ fn main() {
     window.set_light(Light::StickToCamera);
     window.set_background_color(24.0  / 255.0, 24.0 / 255.0, 37.0 / 255.0);
 
-    let sphere = world.add_body(
-        Point3::new(0.0, 2.5, 20.0), 
-        UnitQuaternion::identity(),
-        0.0,
-        Matrix3::zeros()
-    );
-    let arm1 = world.add_body(
-        Point3::new(0.0, 2.5, 22.5),
-        UnitQuaternion::from_axis_angle(&Vector3::x_axis(), -FRAC_PI_2),
-        1.0,
-        cylinder_inertia_tensor(0.25, 5.0, 1.0)
-    );
-    let arm2 = world.add_body(
-        Point3::new(0.0, 2.5, 25.0),
-        UnitQuaternion::from_axis_angle(&Vector3::x_axis(), -FRAC_PI_2),
-        10.0,
-        cylinder_inertia_tensor(0.25, 5.0, 10.0)
-    );
-
-    let joint1 = RevoluteJoint::new(
-        sphere, 
-        arm1, 
-        Point3::origin(),
-        Point3::new(0.0, 2.5, 0.0),
-        UnitVector3::new_normalize(Vector3::new(1.0, 1.0, 0.0)),
-        Vector3::x_axis(),
-        0.0
-    );
-    let joint2 = SphericalJoint::new(
-        arm1, 
-        arm2, 
-        Point3::new(0.0, -2.5, 0.0),
-        Point3::new(0.0, 2.5, 0.0),
-        0.0
-    );
-
-    world.add_constraint(joint1);
-    world.add_constraint(joint2);
-
-    let mut sphere_node = window.add_sphere(0.5);
-    let mut arm1_node = window.add_capsule(0.25, 5.0);
-    let mut arm2_node = window.add_capsule(0.25, 5.0);
-
-    sphere_node.set_color(DARK_GRAY.0, DARK_GRAY.1, DARK_GRAY.2);
-    arm1_node.set_color(ORANGE.0, ORANGE.1, ORANGE.2);
-    arm2_node.set_color(ORANGE.0, ORANGE.1, ORANGE.2);
-
-    let mut nodes = vec![sphere_node, arm1_node, arm2_node];
+    let mut nodes = vec![] as Vec<kiss3d::scene::SceneNode>;
 
     let mut last_time = Instant::now();
 
