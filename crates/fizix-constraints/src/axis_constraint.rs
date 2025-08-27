@@ -37,11 +37,8 @@ impl Constraint for AxisConstraint {
         let u_b = orient_b.transform_vector(&self.local_axis_b);
 
         let orthogonal = u_a.cross(&u_b);
-        let sin_sq_theta = orthogonal.norm_squared();
 
-        if sin_sq_theta < EPSILON_SQUARED { return None; }
-
-        let sin_theta = sin_sq_theta.sqrt();
+        let sin_theta = orthogonal.norm();
         let cos_theta = u_a.dot(&u_b);
         let phi = sin_theta.atan2(cos_theta);
 

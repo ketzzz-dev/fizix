@@ -22,7 +22,6 @@ impl Deref for BodyHandle {
     }
 }
 
-
 #[derive(Default)]
 pub struct BodySet {
     pub position: Vec<Point3<Precision>>,

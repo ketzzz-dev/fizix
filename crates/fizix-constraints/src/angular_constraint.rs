@@ -1,5 +1,5 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON, EPSILON_SQUARED};
-use nalgebra::{UnitQuaternion, UnitVector3, Vector3};
+use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision};
+use nalgebra::{UnitVector3, Vector3};
 
 pub struct AngularConstraint {
     pub body_a: BodyHandle,
@@ -44,24 +44,21 @@ impl Constraint for AngularConstraint {
         let u_b = orient_b.transform_vector(&self.local_axis_b);
 
         let orthogonal = u_a.cross(&u_b);
-        let sin_sq_theta = orthogonal.norm_squared();
 
-        if sin_sq_theta < EPSILON_SQUARED { return None; }
-
-        let sin_theta = sin_sq_theta.sqrt();
+        let sin_theta = orthogonal.norm();
         let cos_theta = u_a.dot(&u_b);
         let phi = sin_theta.atan2(cos_theta);
 
-        if phi >= self.min_angle && phi <= self.max_angle && phi.abs() > EPSILON { return None; }
+        if phi >= self.min_angle && phi <= self.max_angle { return None; }
 
-        let phi = phi.clamp(self.min_angle, self.max_angle);
+        let error = phi.clamp(self.min_angle, self.max_angle);
         let normal = orthogonal / sin_theta;
 
         Some(CorrectionData::Rotational {
             handles: vec![self.body_a, self.body_b],
             axes: vec![normal, -normal],
 
-            error: phi,
+            error,
             alpha: self.compliance
         })
     }

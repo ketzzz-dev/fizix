@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 nalgebra = { workspace = true }
+itertools = { workspace = true }

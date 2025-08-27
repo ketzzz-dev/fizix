@@ -1,14 +1,17 @@
 use crate::{BodyHandle, BodySet, Constraint, Precision};
+use itertools::izip;
 use nalgebra::{Matrix3, Point3, UnitQuaternion, Vector3};
 
 pub struct World {
     pub bodies: BodySet,
     pub constraints: Vec<Box<dyn Constraint>>,
 
-    pub gravity: Vector3<Precision>,
+    lambdas: Vec<Precision>,
 
-    pub sub_steps: usize,
-    pub constraint_iterations: usize
+    gravity: Vector3<Precision>,
+
+    sub_steps: usize,
+    constraint_iterations: usize
 }
 
 impl World {
@@ -16,6 +19,8 @@ impl World {
         Self {
             bodies: BodySet::new(),
             constraints: Vec::new(),
+
+            lambdas: Vec::new(),
 
             gravity, sub_steps, constraint_iterations
         }
@@ -61,6 +66,7 @@ impl World {
 
     pub fn add_constraint(&mut self, constraint: impl Constraint + 'static) {
         self.constraints.push(Box::new(constraint));
+        self.lambdas.push(0.0);
     }
 
     pub fn step(&mut self, dt: Precision) {
@@ -92,8 +98,8 @@ impl World {
 
             // constraint solve
             for _ in 0..self.constraint_iterations {
-                for constraint in &mut self.constraints {
-                    constraint.solve(&mut self.bodies, sub_dt);
+                for (constraint, lambda) in izip!(&mut self.constraints, &mut self.lambdas) {
+                    constraint.solve(&mut self.bodies, lambda, sub_dt);
                 }
             }
 

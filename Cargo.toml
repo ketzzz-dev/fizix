@@ -9,6 +9,7 @@ resolver = "2"
 
 [workspace.dependencies]
 nalgebra = "0.34.0"
+itertools = "0.14.0"
 
 [profile.dev]
 opt-level = 3
