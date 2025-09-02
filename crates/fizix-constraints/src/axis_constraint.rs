@@ -2,12 +2,13 @@ use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPS
 use nalgebra::{UnitVector3, Vector3};
 
 pub struct AxisConstraint {
-    body_a: BodyHandle, body_b: BodyHandle,
+    pub body_a: BodyHandle,
+    pub body_b: BodyHandle,
 
-    local_axis_a: UnitVector3<Precision>,
-    local_axis_b: UnitVector3<Precision>,
+    pub local_axis_a: UnitVector3<Precision>,
+    pub local_axis_b: UnitVector3<Precision>,
 
-    compliance: Precision // inverse stiffness
+    pub compliance: Precision // inverse stiffness
 }
 
 impl Default for AxisConstraint {
@@ -44,11 +45,11 @@ impl Constraint for AxisConstraint {
 
         if phi.abs() < EPSILON { return None; }
 
-        let axis = orthogonal / sin_theta;
+        let axis = UnitVector3::new_unchecked(orthogonal / sin_theta);
 
         Some(CorrectionData::Rotational {
             handles: vec![self.body_a, self.body_b],
-            axes: vec![axis, -axis],
+            axes: vec![-axis, axis],
 
             error: phi,
             alpha: self.compliance

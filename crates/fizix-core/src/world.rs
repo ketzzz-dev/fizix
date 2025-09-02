@@ -6,8 +6,6 @@ pub struct World {
     pub bodies: BodySet,
     pub constraints: Vec<Box<dyn Constraint>>,
 
-    lambdas: Vec<Precision>,
-
     gravity: Vector3<Precision>,
 
     sub_steps: usize,
@@ -19,8 +17,6 @@ impl World {
         Self {
             bodies: BodySet::new(),
             constraints: Vec::new(),
-
-            lambdas: Vec::new(),
 
             gravity, sub_steps, constraint_iterations
         }
@@ -66,7 +62,6 @@ impl World {
 
     pub fn add_constraint(&mut self, constraint: impl Constraint + 'static) {
         self.constraints.push(Box::new(constraint));
-        self.lambdas.push(0.0);
     }
 
     pub fn step(&mut self, dt: Precision) {
@@ -97,8 +92,10 @@ impl World {
             }
 
             // constraint solve
+            let mut lambdas = vec![0.0; self.constraints.len()];
+
             for _ in 0..self.constraint_iterations {
-                for (constraint, lambda) in izip!(&mut self.constraints, &mut self.lambdas) {
+                for (constraint, lambda) in izip!(&mut self.constraints, &mut lambdas) {
                     constraint.solve(&mut self.bodies, lambda, sub_dt);
                 }
             }

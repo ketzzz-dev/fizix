@@ -1,19 +1,29 @@
 use itertools::izip;
-use nalgebra::{Point3, Vector3};
-
+use nalgebra::{Point3, UnitVector3, Vector3};
 use crate::{BodyHandle, BodySet, Precision, EPSILON};
+
+pub trait Constraint {
+    fn compute_correction(&self, bodies: &BodySet) -> Option<CorrectionData>;
+
+    fn solve(&mut self, bodies: &mut BodySet, lambda: &mut Precision, dt: Precision) {
+        if let Some(correction) = self.compute_correction(bodies) {
+            correction.apply_correction(bodies, lambda, dt);
+        }
+    }
+}
+
 pub enum CorrectionData {
     Translational {
         handles: Vec<BodyHandle>,
         relative_points: Vec<Point3<Precision>>,
-        normals: Vec<Vector3<Precision>>,
+        normals: Vec<UnitVector3<Precision>>,
 
         error: Precision,
         alpha: Precision // compliance
     },
     Rotational {
         handles: Vec<BodyHandle>,
-        axes: Vec<Vector3<Precision>>,
+        axes: Vec<UnitVector3<Precision>>,
 
         error: Precision,
         alpha: Precision // compliance
@@ -36,7 +46,7 @@ impl CorrectionData {
 
         handles: &[BodyHandle],
         relative_points: &[Point3<Precision>],
-        normals: &[Vector3<Precision>],
+        normals: &[UnitVector3<Precision>],
 
         error: Precision,
         alpha: Precision,
@@ -69,7 +79,7 @@ impl CorrectionData {
 
             if !bodies.has_finite_mass(body) { continue; }
 
-            let correction_impulse = normal * d_lambda;
+            let correction_impulse = normal.into_inner() * d_lambda;
             let rotational_correction = relative_point.coords.cross(&correction_impulse);
 
             bodies.position[body] += bodies.inverse_mass[body] * correction_impulse;
@@ -84,7 +94,7 @@ impl CorrectionData {
         lambda: &mut Precision,
 
         handles: &[BodyHandle],
-        axes: &[Vector3<Precision>],
+        axes: &[UnitVector3<Precision>],
 
         error: Precision,
         alpha: Precision,
@@ -101,7 +111,7 @@ impl CorrectionData {
         for (handle, axis) in izip!(handles, axes) {
             let body = **handle;
 
-            total_inverse_mass += (bodies.inverse_inertia_tensor_world[body] * axis).dot(&axis);
+            total_inverse_mass += (bodies.inverse_inertia_tensor_world[body] * axis.into_inner()).dot(&axis);
         }
 
         if total_inverse_mass < EPSILON { return; }
@@ -115,20 +125,10 @@ impl CorrectionData {
 
             if !bodies.has_finite_mass(body) { continue; }
 
-            let correction_impulse = axis * d_lambda;
+            let correction_impulse = axis.into_inner() * d_lambda;
 
             bodies.apply_rotation_delta(body, bodies.inverse_inertia_tensor_world[body] * correction_impulse);
             bodies.update_derived_data(body);
-        }
-    }
-}
-
-pub trait Constraint {
-    fn compute_correction(&self, bodies: &BodySet) -> Option<CorrectionData>;
-
-    fn solve(&mut self, bodies: &mut BodySet, lambda: &mut Precision, dt: Precision) {
-        if let Some(correction) = self.compute_correction(bodies) {
-            correction.apply_correction(bodies, lambda, dt);
         }
     }
 }

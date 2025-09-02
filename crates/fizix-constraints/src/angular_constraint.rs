@@ -8,7 +8,6 @@ pub struct AngularConstraint {
     pub local_axis_a: UnitVector3<Precision>, // relative to body A
     pub local_axis_b: UnitVector3<Precision>, // relative to body B
 
-    pub min_angle: Precision,
     pub max_angle: Precision,
 
     pub compliance: Precision // inverse stiffness
@@ -23,7 +22,6 @@ impl Default for AngularConstraint {
             local_axis_a: Vector3::x_axis(),
             local_axis_b: Vector3::x_axis(),
 
-            min_angle: Precision::NEG_INFINITY,
             max_angle: Precision::INFINITY,
 
             compliance: 0.0
@@ -49,16 +47,16 @@ impl Constraint for AngularConstraint {
         let cos_theta = u_a.dot(&u_b);
         let phi = sin_theta.atan2(cos_theta);
 
-        if phi >= self.min_angle && phi <= self.max_angle { return None; }
+        if phi >= -self.max_angle && phi <= self.max_angle { return None; }
 
-        let error = phi.clamp(self.min_angle, self.max_angle);
-        let normal = orthogonal / sin_theta;
+        let clamped = phi.clamp(-self.max_angle, self.max_angle);
+        let normal = UnitVector3::new_unchecked(orthogonal / sin_theta);
 
         Some(CorrectionData::Rotational {
             handles: vec![self.body_a, self.body_b],
-            axes: vec![normal, -normal],
+            axes: vec![-normal, normal],
 
-            error,
+            error: phi - clamped,
             alpha: self.compliance
         })
     }

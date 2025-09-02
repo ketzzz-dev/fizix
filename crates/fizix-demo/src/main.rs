@@ -1,9 +1,11 @@
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
 use std::time::Instant;
+use fizix_constraints::{AngularConstraint, AxisConstraint, DistanceConstraint};
 use fizix_core::{Precision, World};
 use kiss3d::light::Light;
 use kiss3d::text::Font;
 use kiss3d::window::{Window};
-use nalgebra::{Matrix3, Vector3};
+use nalgebra::{Matrix3, Point3, UnitQuaternion, Vector3};
 
 const ORANGE: (f32, f32, f32) = (244.0 / 255.0, 115.9 / 255.0, 51.0 / 255.0); // primary color
 const LIGHT_GRAY: (f32, f32, f32) = (108.0 / 255.0, 112.0 / 255.0, 134.0 / 255.0); // secondary color
@@ -17,7 +19,72 @@ fn main() {
     window.set_light(Light::StickToCamera);
     window.set_background_color(24.0  / 255.0, 24.0 / 255.0, 37.0 / 255.0);
 
-    let mut nodes = vec![] as Vec<kiss3d::scene::SceneNode>;
+    let mut anchor_node = window.add_cylinder(0.25, 0.25);
+    let mut arm_1_node = window.add_cube(0.5, 0.25, 2.5);
+    let mut arm_2_node = window.add_cube(0.5, 0.25, 2.5);
+
+    anchor_node.set_color(DARK_GRAY.0, DARK_GRAY.1, DARK_GRAY.2);
+    arm_1_node.set_color(LIGHT_GRAY.0, LIGHT_GRAY.1, LIGHT_GRAY.2);
+    arm_2_node.set_color(LIGHT_GRAY.0, LIGHT_GRAY.1, LIGHT_GRAY.2);
+
+    let mut nodes = vec![anchor_node, arm_1_node, arm_2_node] as Vec<kiss3d::scene::SceneNode>;
+
+    let anchor = world.add_body(
+        Point3::new(0.0, 2.5, 10.0),
+        UnitQuaternion::from_euler_angles(-FRAC_PI_2, 0.0, 0.0),
+        0.0,
+        cylinder_inertia_tensor(0.25, 0.25, 0.0)
+    );
+    let arm_1 = world.add_body(
+        Point3::new(1.25, 2.5, 9.75),
+        UnitQuaternion::from_euler_angles(-FRAC_PI_2, 0.0, FRAC_PI_2),
+        1.0,
+        cuboid_inertia_tensor(1.0, 0.125, 2.5, 1.0)
+    );
+    let arm_2 = world.add_body(
+        Point3::new(3.75, 2.5, 10.0),
+        UnitQuaternion::from_euler_angles(-FRAC_PI_2, 0.0, FRAC_PI_2),
+        1.0,
+        cuboid_inertia_tensor(1.0, 0.125, 2.5, 1.0)
+    );
+
+    world.add_constraint(DistanceConstraint {
+        body_a: anchor,
+        body_b: arm_1,
+
+        local_point_a: Point3::new(0.0, 0.125, 0.0),
+        local_point_b: Point3::new(0.0, -0.125, 1.25),
+
+        ..Default::default()
+    });
+    world.add_constraint(AxisConstraint {
+        body_a: anchor,
+        body_b: arm_1,
+
+        local_axis_a: Vector3::y_axis(),
+        local_axis_b: Vector3::y_axis(),
+
+        ..Default::default()
+    });
+
+    world.add_constraint(DistanceConstraint {
+        body_a: arm_1,
+        body_b: arm_2,
+
+        local_point_a: Point3::new(0.0, -0.125, -1.25),
+        local_point_b: Point3::new(0.0, 0.125, 1.25),
+
+        ..Default::default()
+    });
+    world.add_constraint(AxisConstraint {
+        body_a: arm_1,
+        body_b: arm_2,
+
+        local_axis_a: Vector3::y_axis(),
+        local_axis_b: Vector3::y_axis(),
+
+        ..Default::default()
+    });
 
     let mut last_time = Instant::now();
 
@@ -44,6 +111,8 @@ fn main() {
         );
         
         for (i, node) in nodes.iter_mut().enumerate() {
+            if i >= world.bodies.position.len() { break; }
+
             let position = world.bodies.position[i];
             let orientation = world.bodies.orientation[i];
             let orientation = kiss3d::nalgebra::Quaternion::new(

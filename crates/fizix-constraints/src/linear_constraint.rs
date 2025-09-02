@@ -2,19 +2,19 @@ use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPS
 use nalgebra::{Point3, UnitVector3, Vector3};
 
 pub struct LinearConstraint {
-    body_a: BodyHandle,
-    body_b: BodyHandle,
+    pub body_a: BodyHandle,
+    pub body_b: BodyHandle,
 
-    local_point_a: Point3<Precision>,
-    local_point_b: Point3<Precision>,
-
-    local_axis: UnitVector3<Precision>, // relative to body A
+    pub local_point_a: Point3<Precision>,
+    pub local_point_b: Point3<Precision>,
+ 
+    pub local_axis: UnitVector3<Precision>, // relative to body A
 
     // distance along the axis should be clamped to
-    min_distance: Precision,
-    max_distance: Precision,
+    pub min_distance: Precision,
+    pub max_distance: Precision,
 
-    compliance: Precision // inverse stiffness
+    pub compliance: Precision // inverse stiffness
 }
 
 impl Default for LinearConstraint {
@@ -67,12 +67,12 @@ impl Constraint for LinearConstraint {
         if distance_sq < EPSILON_SQUARED { return None; }   
 
         let distance = distance_sq.sqrt();
-        let normal = p_prime / distance;
+        let normal = UnitVector3::new_unchecked(p_prime / distance);
 
         Some(CorrectionData::Translational {
             handles: vec![self.body_a, self.body_b],
             relative_points: vec![r_a, r_b],
-            normals: vec![normal, -normal],
+            normals: vec![-normal, normal],
             
             error: distance,
             alpha: self.compliance

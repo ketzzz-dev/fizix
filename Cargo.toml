@@ -3,7 +3,7 @@ members = [
     "crates/fizix-core",
     "crates/fizix-constraints",
     "crates/fizix-collisions",
-    "crates/fizix-demos"
+    "crates/fizix-demo"
 ]
 resolver = "2"
 

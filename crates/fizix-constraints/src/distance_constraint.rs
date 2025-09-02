@@ -1,5 +1,5 @@
 use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON, EPSILON_SQUARED};
-use nalgebra::Point3;
+use nalgebra::{Point3, Unit, UnitVector3};
 
 pub struct DistanceConstraint {
     pub body_a: BodyHandle,
@@ -58,12 +58,12 @@ impl Constraint for DistanceConstraint {
 
         if error.abs() < EPSILON { return None; }
 
-        let normal = difference / distance;
+        let normal = UnitVector3::new_unchecked(difference / distance);
 
         Some(CorrectionData::Translational {
             handles: vec![self.body_a, self.body_b],
             relative_points: vec![r_a, r_b],
-            normals: vec![normal, -normal],
+            normals: vec![-normal, normal],
             
             error, alpha: self.compliance
         })
