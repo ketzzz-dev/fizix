@@ -38,8 +38,8 @@ impl Default for LinearConstraint {
 
 impl Constraint for LinearConstraint {
     fn compute_correction(&self, bodies: &BodySet) -> Option<CorrectionData> {
-        let body_a: usize = *self.body_a;
-        let body_b: usize = *self.body_b;
+        let body_a = *self.body_a;
+        let body_b = *self.body_b;
 
         let pos_a = bodies.position[body_a];
         let pos_b = bodies.position[body_b];

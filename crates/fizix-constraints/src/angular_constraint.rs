@@ -31,8 +31,8 @@ impl Default for AngularConstraint {
 
 impl Constraint for AngularConstraint {
     fn compute_correction(&self, bodies: &BodySet) -> Option<CorrectionData> {
-        let body_a: usize = *self.body_a;
-        let body_b: usize = *self.body_b;
+        let body_a = *self.body_a;
+        let body_b = *self.body_b;
 
         let orient_a = bodies.orientation[body_a];
         let orient_b = bodies.orientation[body_b];
