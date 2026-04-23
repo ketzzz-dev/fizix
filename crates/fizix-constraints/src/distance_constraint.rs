@@ -1,5 +1,5 @@
 use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON, EPSILON_SQUARED};
-use nalgebra::{Point3, Unit, UnitVector3};
+use nalgebra::{Point3, UnitVector3};
 
 pub struct DistanceConstraint {
     pub body_a: BodyHandle,

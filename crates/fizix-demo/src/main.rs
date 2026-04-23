@@ -1,6 +1,6 @@
-use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
+use std::f64::consts::{FRAC_PI_2};
 use std::time::Instant;
-use fizix_constraints::{AngularConstraint, AxisConstraint, DistanceConstraint};
+use fizix_constraints::{AxisConstraint, DistanceConstraint};
 use fizix_core::{Precision, World};
 use kiss3d::light::Light;
 use kiss3d::text::Font;
@@ -14,7 +14,7 @@ const WHITE: (f32, f32, f32) = (204.0 / 255.0, 214.0 / 255.0, 244.0 / 255.0); //
 
 fn main() {
     let mut window = Window::new_with_size("Fizix", 1280, 720);
-    let mut world = World::new(Vector3::new(0.0, -9.81 * 2.0, 0.0), 8, 2);
+    let mut world = World::new(Vector3::new(0.0, -9.81 * 2.0, 0.0), 16, 2);
 
     window.set_light(Light::StickToCamera);
     window.set_background_color(24.0  / 255.0, 24.0 / 255.0, 37.0 / 255.0);
@@ -38,8 +38,8 @@ fn main() {
     let arm_1 = world.add_body(
         Point3::new(1.25, 2.5, 9.75),
         UnitQuaternion::from_euler_angles(-FRAC_PI_2, 0.0, FRAC_PI_2),
-        1.0,
-        cuboid_inertia_tensor(1.0, 0.125, 2.5, 1.0)
+        10.0,
+        cuboid_inertia_tensor(1.0, 0.125, 2.5, 10.0)
     );
     let arm_2 = world.add_body(
         Point3::new(3.75, 2.5, 10.0),

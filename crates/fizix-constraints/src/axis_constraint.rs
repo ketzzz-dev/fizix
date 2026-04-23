@@ -1,4 +1,4 @@
-use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON, EPSILON_SQUARED};
+use fizix_core::{BodyHandle, BodySet, Constraint, CorrectionData, Precision, EPSILON};
 use nalgebra::{UnitVector3, Vector3};
 
 pub struct AxisConstraint {

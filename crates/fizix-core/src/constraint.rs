@@ -1,5 +1,5 @@
 use itertools::izip;
-use nalgebra::{Point3, UnitVector3, Vector3};
+use nalgebra::{Point3, UnitVector3};
 use crate::{BodyHandle, BodySet, Precision, EPSILON};
 
 pub trait Constraint {
